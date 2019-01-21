@@ -6,12 +6,16 @@ import json
 import binascii
 import rsa
 import os
+from PIL import Image
+
 class Weibo():
     def __init__(self, username, password):
         self.session = requests.session()
         self.username = username
         self.password = password
         self.uid = ""
+        self.code = ""
+        self.pcid = ""
 
     def userLogin(self, pagecount=1):
         #登录微博
@@ -59,6 +63,9 @@ class Weibo():
             'returntype':'META',
             'rsakv':rsakv,
             }
+        if self.code != "" and self.pcid != "":
+            postdata['pcid'] = self.pcid
+            postdata['door'] = self.code
         resp=self.session.post(url_login,data=postdata,headers=get_Header)
         #发送请求
         login_url=re.findall(r'http://weibo.*&retcode=0', resp.text)
@@ -75,9 +82,36 @@ class Weibo():
             print("登录失败")
             os._exit(0)
 
+    def checkCode(self):
+        su = base64.b64encode(self.username.encode(encoding="utf-8")) #将用户名编码
+        url = "https://login.sina.com.cn/sso/prelogin.php?entry=weibo&callback=sinaSSOController.preloginCallBack&su=%s&rsakt=mod&checkpin=1&client=ssologin.js(v1.4.19)&_=1548056423021" % su.decode("utf-8")
+        respo = self.session.get(url)
+        showpin = re.findall(r'showpin":([0|1])', respo.text)
+        #判断showpin值是否存在
+        if len(showpin)==1:
+            pcid_re = re.findall(r'"pcid":"(.+?)"', respo.text)
+            return pcid_re[0] #返回需要验证码时的p值
+        else:
+            return False #无需验证码
+
+    def getCodeImg(self,pcid):
+        url = "https://login.sina.com.cn/cgi/pin.php?r=35784298&s=0&p=%s" % pcid
+        codeimg = self.session.get(url).content
+        self.pcid = pcid
+        return codeimg
+
+    def setCode(self,code):
+        self.code = code
 
 if __name__ == "__main__":
     username = input("请输入账号：")
     password = input("请输入密码：")
     weibo = Weibo(username, password)
+    pcid = weibo.checkCode()
+    if pcid != False:
+        with open("code.png", "wb") as file:
+            file.write(weibo.getCodeImg(pcid))
+        Image.open("code.png").show()
+        code = input("请输入验证码：")
+        weibo.setCode(code)
     weibo.userLogin()
