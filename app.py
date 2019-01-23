@@ -6,6 +6,7 @@ import json
 import binascii
 import rsa
 import os
+import time
 from PIL import Image
 
 class Weibo():
@@ -103,6 +104,40 @@ class Weibo():
     def setCode(self,code):
         self.code = code
 
+    def sendWeibo(self,text):
+        self.Header = {
+            "Accept": "*/*",
+            "Accept-Encoding": "gzip, deflate",
+            "Accept-Language": "zh-CN,zh;q=0.8",
+            "Connection": "keep-alive",
+            "Content-Length": "177",
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Host": "weibo.com",
+            "Origin": "http://weibo.com",
+            "Referer": "http://weibo.com/u/" + self.uid + "/home?wvr=5&c=spr_qdhz_bd_360jsllqcj_weibo_001",
+            "User-Agent": "Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36",
+            "X-Requested-With": "XMLHttpRequest"}
+        sendurl="https://weibo.com/aj/mblog/add?ajwvr=6&__rnd=1504967427943"
+        formdata={"location": "v6_content_home",
+                "text": text,
+                "style_type": "1",
+                "rank": "0",
+                "isReEdit": "false",
+                "module": "stissue",
+                "pub_source": "main_",
+                "pub_type": "dialog",
+                "isPri":"0",
+                "_t": "0"}
+        return_text = self.session.post(sendurl, data=formdata,headers=self.Header).text
+        data = json.loads(return_text)
+        if data['code'] == "100000":
+            print("发表成功")
+        else:
+            print("发表失败")
+
+    def getUrl(self):
+        self.session.get("http://weibo.com/u/" + self.uid)
+
 if __name__ == "__main__":
     username = input("请输入账号：")
     password = input("请输入密码：")
@@ -115,3 +150,16 @@ if __name__ == "__main__":
         code = input("请输入验证码：")
         weibo.setCode(code)
     weibo.userLogin()
+    bday = input("请输入生日,格式:01-31：")
+    jlday = ""
+    while True:
+        today =  time.strftime('%m-%d', time.localtime(time.time()))
+        if today!=jlday:
+            print(jlday, today, bday)
+            if today==bday:
+                weibo.sendWeibo("生日快乐![蛋糕]")
+            else:
+                weibo.sendWeibo("不是今天![微风]")
+            jlday = today
+        time.sleep(300)
+        weibo.getUrl()
